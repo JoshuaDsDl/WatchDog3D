@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Object Detection</title>
+</head>
+<body>
+    <video id="v" autoplay playsinline width="640" height="480" style="border:1px solid black;"></video>
+    <canvas id="vis" width="640" height="480" style="border:1px solid red;"></canvas>
+    <script>
+        const v = document.getElementById('v');
+        const vis = document.getElementById('vis');
+        const ctx = vis.getContext('2d');
+        let interval;
+
+        async function start() {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 } });
+            v.srcObject = stream;
+            v.addEventListener('loadedmetadata', () => {
+                vis.width = 640;
+                vis.height = 480;
+                interval = setInterval(captureAndSend, 800); // ~1.25 FPS
+            });
+            await v.play();
+        }
+
+        async function captureAndSend() {
+            ctx.drawImage(v, 0, 0, vis.width, vis.height);
+            vis.toBlob(async (blob) => {
+                const fd = new FormData();
+                fd.append('image', blob, 'frame.jpg');
+                const r = await fetch(window.location.origin + '/predict', { method: 'POST', body: fd });
+                const dets = await r.json();
+                console.log('Response', dets);
+                if (dets.problems) {
+                    clearInterval(interval);
+                    displayProblems(dets.problems);
+                } else {
+                    drawOverlays(dets);
+                }
+            }, 'image/jpeg', 0.75);
+        }
+
+        function drawOverlays(dets) {
+            console.log('Drawing', dets);
+            ctx.drawImage(v, 0, 0, vis.width, vis.height);
+            ctx.lineWidth = 3;
+            ctx.font = '16px sans-serif';
+            dets.forEach(d => {
+                const [x1, y1, x2, y2] = d.box;
+                console.log('Box', x1, y1, x2, y2);
+                ctx.strokeStyle = '#00ff88';
+                ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+                const label = `${d.label} ${(d.confidence * 100).toFixed(1)}%`;
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fillRect(x1, y1 - 20, ctx.measureText(label).width + 10, 20);
+                ctx.fillStyle = '#fff';
+                ctx.fillText(label, x1 + 5, y1 - 5);
+            });
+        }
+
+        function displayProblems(problems) {
+            // Pause the video
+            v.pause();
+
+            const container = document.createElement('div');
+            container.style.position = 'absolute';
+            container.style.top = '10px';
+            container.style.left = '10px';
+            container.style.background = 'rgba(0,0,0,0.8)';
+            container.style.color = 'white';
+            container.style.padding = '10px';
+            container.style.borderRadius = '5px';
+            problems.forEach(p => {
+                const div = document.createElement('div');
+                div.innerHTML = `<strong>${p.name}</strong><br>Cause: ${p.cause}<br>Solution: ${p.solution}<br><br>`;
+                container.appendChild(div);
+            });
+            document.body.appendChild(container);
+        }
+
+        start();
+    </script>
+</body>
+</html>
