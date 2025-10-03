@@ -16,6 +16,7 @@ from lib.detection_model import load_net, detect
 
 THRESH = 0.1  # The threshold for a box to be considered a positive detection
 SESSION_TTL_SECONDS = 60*2
+LLM_RATE_LIMIT_SECONDS = 60
 
 # Sentry
 if environ.get('SENTRY_DSN'):
@@ -66,7 +67,7 @@ def predict():
         if len(detection_times) >= 3:
             # Check LLM rate limiting (max once per minute)
             current_time = time.time()
-            llm_call_times = [t for t in llm_call_times if current_time - t < 60]  # Keep only calls within last minute
+            llm_call_times = [t for t in llm_call_times if current_time - t < LLM_RATE_LIMIT_SECONDS]  # Keep only calls within last minute
 
             if len(llm_call_times) == 0:
                 print("Calling LLM for 3D print analysis")
@@ -123,9 +124,13 @@ def predict():
 def index():
     return send_from_directory('.', 'index.html')
 
+@app.route('/<path:filename>', methods=['GET'])
+def serve_static(filename):
+    return send_from_directory('.', filename)
+
 @app.route('/hc/', methods=['GET'])
 def health_check():
     return 'ok' if net_main is not None else 'error'
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=5001, threaded=False)
+    app.run(host='0.0.0.0', port=3001, threaded=False)
