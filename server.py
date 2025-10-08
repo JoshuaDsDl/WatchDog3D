@@ -14,9 +14,9 @@ import base64
 
 from lib.detection_model import load_net, detect
 
-THRESH = 0.1  # The threshold for a box to be considered a positive detection
+THRESH = 0.02  # The threshold for a box to be considered a positive detection
 SESSION_TTL_SECONDS = 60*2
-LLM_RATE_LIMIT_SECONDS = 60
+LLM_RATE_LIMIT_SECONDS = 30
 
 # Sentry
 if environ.get('SENTRY_DSN'):
@@ -79,7 +79,7 @@ def predict():
                     'Authorization': f'Bearer {environ.get("OPENROUTER_API_KEY")}',
                     'Content-Type': 'application/json'
                 }, json={
-                    'model': 'x-ai/grok-4-fast:free',
+                    'model': 'openai/gpt-5-nano',
                     'messages': [{
                         'role': 'user',
                         'content': [
@@ -133,4 +133,4 @@ def health_check():
     return 'ok' if net_main is not None else 'error'
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=3001, threaded=False)
+    app.run(host='0.0.0.0', port=8080, threaded=False)

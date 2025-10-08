@@ -322,6 +322,17 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
+            z-index: 1;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
         }
 
         .no-camera-message {
@@ -500,6 +511,7 @@
                     <div class="video-container">
                         <video id="v" playsinline muted></video>
                         <canvas id="vis"></canvas>
+                        <canvas id="overlay"></canvas>
                         <div id="noCameraMessage" class="no-camera-message">
                             <div class="message-content">
                                 <span class="message-icon">📹</span>
@@ -528,6 +540,8 @@
         const v = document.getElementById('v');
         const vis = document.getElementById('vis');
         const ctx = vis.getContext('2d');
+        const overlay = document.getElementById('overlay');
+        const overlayCtx = overlay.getContext('2d');
         const defectsList = document.getElementById('defectsList');
         const cameraToggle = document.getElementById('cameraToggle');
         const statusText = document.getElementById('statusText');
@@ -535,8 +549,14 @@
         const noCameraMessage = document.getElementById('noCameraMessage');
 
         let interval;
+        let animationId;
         let defectCount = 0;
         let isCameraActive = false;
+
+        function drawVideo() {
+            ctx.drawImage(v, 0, 0, vis.width, vis.height);
+            animationId = requestAnimationFrame(drawVideo);
+        }
 
         async function start() {
             console.log('Starting camera access...');
@@ -550,6 +570,8 @@
                     console.log('Video metadata loaded');
                     vis.width = 640;
                     vis.height = 480;
+                    overlay.width = 640;
+                    overlay.height = 480;
                     noCameraMessage.style.display = 'none';
                     v.style.display = 'block';
                     interval = setInterval(captureAndSend, 1000);
@@ -563,6 +585,7 @@
 
                 await v.play();
                 console.log('Video playing');
+                drawVideo();
 
                 // Update UI - toggle is now in topbar
                 cameraToggle.checked = true;
@@ -578,6 +601,11 @@
             if (interval) {
                 clearInterval(interval);
                 interval = null;
+            }
+
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
             }
 
             if (v.srcObject) {
@@ -608,8 +636,6 @@
         }
 
         async function captureAndSend() {
-            ctx.clearRect(0, 0, vis.width, vis.height);
-            ctx.drawImage(v, 0, 0, vis.width, vis.height);
             vis.toBlob(async (blob) => {
                 const fd = new FormData();
                 fd.append('image', blob, 'frame.jpg');
@@ -617,13 +643,14 @@
                     const r = await fetch(window.location.origin + '/predict', { method: 'POST', body: fd });
                     const dets = await r.json();
                     console.log('Response', dets);
+                    const detections = Array.isArray(dets) ? dets : dets.detections || [];
                     if (dets.problems) {
                         // Use the first problem's information for the defect display
                         const defectInfo = dets.problems[0];
                         addDefect(blob, defectInfo);
                         displayProblems(dets.problems);
                     } else {
-                        drawOverlays(dets);
+                        drawOverlays(detections);
                     }
                 } catch (error) {
                     console.error('Fetch error:', error);
@@ -633,20 +660,19 @@
 
         function drawOverlays(dets) {
             console.log('Drawing', dets);
-            ctx.clearRect(0, 0, vis.width, vis.height);
-            ctx.drawImage(v, 0, 0, vis.width, vis.height);
-            ctx.lineWidth = 4;
-            ctx.font = '18px sans-serif';
+            overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+            overlayCtx.lineWidth = 4;
+            overlayCtx.font = '18px sans-serif';
             dets.forEach(d => {
                 const [x1, y1, x2, y2] = d.box;
                 console.log('Box', x1, y1, x2, y2);
-                ctx.strokeStyle = '#00B8DE';
-                ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+                overlayCtx.strokeStyle = '#00B8DE';
+                overlayCtx.strokeRect(x1, y1, x2 - x1, y2 - y1);
                 const label = `${d.label} ${(d.confidence * 100).toFixed(1)}%`;
-                ctx.fillStyle = 'rgba(20, 34, 60, 0.8)';
-                ctx.fillRect(x1, y1 - 25, ctx.measureText(label).width + 10, 25);
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillText(label, x1 + 5, y1 - 5);
+                overlayCtx.fillStyle = 'rgba(20, 34, 60, 0.8)';
+                overlayCtx.fillRect(x1, y1 - 25, overlayCtx.measureText(label).width + 10, 25);
+                overlayCtx.fillStyle = '#FFFFFF';
+                overlayCtx.fillText(label, x1 + 5, y1 - 5);
             });
         }
 
