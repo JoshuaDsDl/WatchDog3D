@@ -171,6 +171,23 @@
             0%, 50% { opacity: 1; }
             51%, 100% { opacity: 0.3; }
         }
+
+        .settings-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #14223C;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .status-text {
+            white-space: nowrap;
+        }
         /* Main Container */
         .main-container {
             margin-top: 70px;
@@ -348,6 +365,16 @@
             z-index: 10;
         }
 
+        .no-defects-message {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            min-height: 200px;
+            color: #14223C;
+            text-align: center;
+        }
+
         .message-content {
             text-align: center;
             color: #14223C;
@@ -404,6 +431,31 @@
             background: rgba(0, 184, 222, 0.05);
             border-radius: 10px;
             border-left: 4px solid #00B8DE;
+            position: relative;
+        }
+
+        .defect-remove-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #FF9900;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .defect-remove-btn:hover {
+            background: #e68a00;
+            transform: scale(1.1);
         }
 
         .defect-image {
@@ -454,6 +506,111 @@
             box-shadow: 0 5px 15px rgba(20, 34, 60, 0.3);
             border-left: 4px solid #00B8DE;
         }
+
+        .analysis-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 184, 222, 0.7);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 9999;
+        }
+
+        .modal {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 10000;
+            width: 400px;
+            max-width: 90vw;
+            height: auto;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal h3 {
+            margin-top: 0;
+            color: #14223C;
+            font-size: 24px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .setting-item {
+            margin-bottom: 20px;
+        }
+
+        .setting-item label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #14223C;
+        }
+
+        .setting-item input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .setting-item p {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+            margin-bottom: 0;
+        }
+
+        .modal-buttons {
+            text-align: right;
+            margin-top: 20px;
+        }
+
+        .modal-buttons button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+
+        #cancelBtn {
+            background: #6c757d;
+            color: white;
+        }
+
+        #saveBtn {
+            background: #00B8DE;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -477,12 +634,28 @@
                     </label>
                 </div>
 
+                <span class="status-text">Caméra</span>
+
                 <!-- Delimiter -->
                 <div class="status-delimiter"></div>
 
                 <!-- Status Indicator -->
                 <span class="status-dot"></span>
                 <span class="status-text" id="statusText">Inactif</span>
+
+                <!-- Delimiter -->
+                <div class="status-delimiter"></div>
+
+                <!-- Fullscreen Button -->
+                <button id="fullscreenBtn" class="settings-btn" title="Plein écran">🔳</button>
+                <span class="status-text">Plein écran</span>
+
+                <!-- Delimiter -->
+                <div class="status-delimiter"></div>
+
+                <!-- Settings Button -->
+                <button id="settingsBtn" class="settings-btn" title="Paramètres">⚙️</button>
+                <span class="status-text">Paramètres</span>
             </div>
         </div>
     </div>
@@ -512,6 +685,7 @@
                         <video id="v" playsinline muted></video>
                         <canvas id="vis"></canvas>
                         <canvas id="overlay"></canvas>
+                        <div id="analysisOverlay" class="analysis-overlay" style="display: none;">Analyse approfondie en cours...</div>
                         <div id="noCameraMessage" class="no-camera-message">
                             <div class="message-content">
                                 <span class="message-icon">📹</span>
@@ -529,12 +703,61 @@
                 <h3 class="card-header">Défauts Détectés</h3>
                 <div class="card-content">
                     <div id="defectsList">
+                        <div id="noDefectsMessage" class="no-defects-message">
+                            <div class="message-content">
+                                <span class="message-icon">✅</span>
+                                <p>Aucun défaut majeur n'a été détecté pour l'instant</p>
+                            </div>
+                        </div>
                         <!-- Defect items will be added here -->
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Settings Modal -->
+    <div id="modalBackdrop" class="modal-backdrop" style="display: none;"></div>
+    <div id="settingsModal" class="modal" style="display: none;">
+        <h3>Paramètres</h3>
+        <div class="setting-item">
+            <label for="threshInput">Seuil de détection</label>
+            <input type="number" id="threshInput" step="0.01" min="0" max="1" value="0.02">
+            <p>Description: Seuil minimum pour considérer une détection comme valide (entre 0 et 1)</p>
+        </div>
+        <div class="setting-item">
+            <label for="llmRateInput">Délai entre analyses de défauts (secondes)</label>
+            <input type="number" id="llmRateInput" min="1" value="30">
+            <p>Description: Temps minimum en secondes entre deux analyses basées sur les défauts détectés</p>
+        </div>
+        <div class="setting-item">
+            <label for="autoAnalysisToggle">
+                <input type="checkbox" id="autoAnalysisToggle" checked style="width: auto; margin-right: 10px;">
+                Activer l'analyse automatique préventive
+            </label>
+            <p>Description: Effectue une analyse LLM périodique même sans défauts détectés</p>
+        </div>
+        <div class="setting-item">
+            <label for="autoAnalysisInterval">Intervalle d'analyse automatique (minutes)</label>
+            <input type="number" id="autoAnalysisInterval" min="1" value="3">
+            <p>Description: Fréquence des analyses automatiques préventives</p>
+        </div>
+        <div class="setting-item">
+            <label for="llmModelInput">Modèle LLM</label>
+            <input type="text" id="llmModelInput" value="openai/gpt-5-nano">
+            <p>Description: Nom du modèle LLM à utiliser (ex: openai/gpt-5-nano, anthropic/claude-3-haiku)</p>
+        </div>
+        <div class="setting-item">
+            <label for="llmPromptInput">Prompt LLM</label>
+            <textarea id="llmPromptInput" rows="8" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; font-family: monospace; resize: vertical;"></textarea>
+            <p>Description: Prompt envoyé au LLM pour l'analyse des défauts</p>
+        </div>
+        <div class="modal-buttons">
+            <button id="cancelBtn">Annuler</button>
+            <button id="saveBtn">Sauvegarder</button>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         const v = document.getElementById('v');
@@ -552,10 +775,81 @@
         let animationId;
         let defectCount = 0;
         let isCameraActive = false;
+        let detectionTimestamps = [];
+        let isAnalyzing = false;
 
         function drawVideo() {
             ctx.drawImage(v, 0, 0, vis.width, vis.height);
             animationId = requestAnimationFrame(drawVideo);
+        }
+
+        function showAnalysisOverlay(isAuto = false) {
+            isAnalyzing = true;
+            const overlay = document.getElementById('analysisOverlay');
+            overlay.textContent = isAuto ? 'Analyse automatique de prévention...' : 'Analyse approfondie en cours...';
+            overlay.style.display = 'flex';
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            if (!v.paused) {
+                v.pause();
+            }
+            
+            // Safety timeout: force reset after 90 seconds if still analyzing
+            setTimeout(() => {
+                if (isAnalyzing) {
+                    console.warn('Analysis timeout - forcing reset');
+                    hideAnalysisOverlay();
+                    showErrorNotification('Analyse interrompue (timeout). Reprise de la détection...');
+                }
+            }, 90000);
+        }
+
+        function hideAnalysisOverlay() {
+            isAnalyzing = false;
+            document.getElementById('analysisOverlay').style.display = 'none';
+            if (v.paused && isCameraActive) {
+                v.play();
+            }
+            if (isCameraActive) {
+                drawVideo();
+            }
+        }
+        
+        function showErrorNotification(message) {
+            // Remove any existing error notification
+            const existingError = document.querySelector('.error-notification');
+            if (existingError) {
+                existingError.remove();
+            }
+            
+            // Create new error notification
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-notification';
+            errorDiv.style.cssText = `
+                position: fixed;
+                top: 90px;
+                right: 20px;
+                background: rgba(255, 153, 0, 0.95);
+                color: white;
+                padding: 15px 20px;
+                border-radius: 10px;
+                max-width: 300px;
+                z-index: 1000;
+                box-shadow: 0 5px 15px rgba(20, 34, 60, 0.3);
+                border-left: 4px solid #00B8DE;
+                font-weight: 500;
+            `;
+            errorDiv.textContent = message;
+            document.body.appendChild(errorDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                errorDiv.style.transition = 'opacity 0.5s';
+                errorDiv.style.opacity = '0';
+                setTimeout(() => errorDiv.remove(), 500);
+            }, 5000);
         }
 
         async function start() {
@@ -573,7 +867,7 @@
                     overlay.width = 640;
                     overlay.height = 480;
                     noCameraMessage.style.display = 'none';
-                    v.style.display = 'block';
+                    v.style.display = 'none'; // Hide video element, display is on canvas
                     interval = setInterval(captureAndSend, 1000);
                     isCameraActive = true;
                     updateStatusIndicator();
@@ -636,26 +930,115 @@
         }
 
         async function captureAndSend() {
+            // Skip if analysis is in progress
+            if (isAnalyzing) {
+                console.log('Skipping capture - analysis in progress');
+                return;
+            }
+            
             vis.toBlob(async (blob) => {
                 const fd = new FormData();
                 fd.append('image', blob, 'frame.jpg');
                 try {
-                    const r = await fetch(window.location.origin + '/predict', { method: 'POST', body: fd });
+                    // Add timeout to prevent hanging requests
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+                    
+                    const r = await fetch(window.location.origin + '/predict', {
+                        method: 'POST',
+                        body: fd,
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+                    
+                    if (!r.ok) {
+                        throw new Error(`HTTP error! status: ${r.status}`);
+                    }
+                    
                     const dets = await r.json();
                     console.log('Response', dets);
-                    const detections = Array.isArray(dets) ? dets : dets.detections || [];
-                    if (dets.problems) {
-                        // Use the first problem's information for the defect display
-                        const defectInfo = dets.problems[0];
-                        addDefect(blob, defectInfo);
-                        displayProblems(dets.problems);
+                    const detections = dets.detections || (Array.isArray(dets) ? dets : []);
+                    if (detections.length > 0) {
+                        detectionTimestamps.push(Date.now());
+                        detectionTimestamps = detectionTimestamps.filter(t => Date.now() - t < 30000);
+                    }
+                    
+                    // Check if deep analysis is starting
+                    if (dets.deep_analysis_starting) {
+                        const isAuto = dets.is_auto || false;
+                        console.log(`Deep analysis starting - ${isAuto ? 'automatic preventive' : 'defect-based'}`);
+                        showAnalysisOverlay(isAuto);
+                        detectionTimestamps = [];
+                        // Launch analysis in background
+                        performDeepAnalysis(blob);
+                    } else if (dets.deep_analysis) {
+                        // This shouldn't happen with new flow, but keep for safety
+                        showAnalysisOverlay();
+                        if (dets.problems) {
+                            const defectInfo = dets.problems[0];
+                            addDefect(blob, defectInfo);
+                            displayProblems(dets.problems);
+                            detectionTimestamps = [];
+                        } else {
+                            setTimeout(() => hideAnalysisOverlay(), 2000);
+                            detectionTimestamps = [];
+                        }
                     } else {
                         drawOverlays(detections);
                     }
                 } catch (error) {
                     console.error('Fetch error:', error);
+                    // Reset analyzing state if there was an error
+                    if (isAnalyzing) {
+                        console.log('Resetting analyzing state due to error');
+                        hideAnalysisOverlay();
+                    }
                 }
             }, 'image/jpeg', 0.8);
+        }
+
+        async function performDeepAnalysis(blob) {
+            try {
+                console.log('Performing deep analysis...');
+                
+                // Add timeout to prevent hanging requests (60 seconds for LLM analysis)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    console.error('Analysis timeout - aborting request');
+                    controller.abort();
+                }, 60000);
+                
+                const r = await fetch(window.location.origin + '/analyze', {
+                    method: 'POST',
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                if (!r.ok) {
+                    throw new Error(`HTTP error! status: ${r.status}`);
+                }
+                
+                const result = await r.json();
+                console.log('Analysis result:', result);
+                
+                if (result.problems) {
+                    // Use the first problem's information for the defect display
+                    const defectInfo = result.problems[0];
+                    addDefect(blob, defectInfo);
+                    displayProblems(result.problems);
+                    // Hide overlay after showing the result
+                    setTimeout(() => hideAnalysisOverlay(), 2000);
+                } else {
+                    // Deep analysis done, no problems
+                    setTimeout(() => hideAnalysisOverlay(), 2000);
+                }
+            } catch (error) {
+                console.error('Analysis error:', error);
+                // Always hide overlay and reset state on error
+                hideAnalysisOverlay();
+                // Show error notification to user
+                showErrorNotification('Erreur lors de l\'analyse. Reprise de la détection...');
+            }
         }
 
         function drawOverlays(dets) {
@@ -695,40 +1078,60 @@
                     <div class="defect-solution">Solution: ${defectInfo.solution || 'Non spécifiée'}</div>
                     <div class="defect-time">${currentTime}</div>
                 </div>
+                <button class="defect-remove-btn" title="Supprimer ce défaut">×</button>
             `;
+
+            // Hide the no defects message
+            document.getElementById('noDefectsMessage').style.display = 'none';
 
             // Add to the beginning of the list (most recent first)
             defectsList.insertBefore(defectItem, defectsList.firstChild);
             defectCount++;
 
             // Keep only the last 10 defects to prevent memory issues
-            while (defectsList.children.length > 10) {
+            while (defectsList.children.length > 11) { // since message is also a child
                 const oldestDefect = defectsList.lastChild;
-                URL.revokeObjectURL(oldestDefect.querySelector('.defect-image').src);
-                oldestDefect.remove();
+                if (oldestDefect.id !== 'noDefectsMessage') {
+                    URL.revokeObjectURL(oldestDefect.querySelector('.defect-image').src);
+                    oldestDefect.remove();
+                }
             }
         }
 
         function displayProblems(problems) {
-            // Remove existing error overlay
-            const existing = document.querySelector('.error-overlay');
-            if (existing) existing.remove();
-
-            const container = document.createElement('div');
-            container.className = 'error-overlay';
-            container.innerHTML = '<h5>🚨 Problème Détecté</h5>';
-            problems.forEach(p => {
-                const div = document.createElement('div');
-                div.innerHTML = `<strong>${p.name}</strong><br><small>Cause: ${p.cause}<br>Solution: ${p.solution}</small><br><br>`;
-                container.appendChild(div);
-            });
-            document.body.appendChild(container);
-
-            // Auto-hide after 10 seconds
-            setTimeout(() => {
-                if (container.parentNode) container.remove();
-            }, 10000);
+            // This function is now just for logging or future extensions
+            console.log('Problems displayed:', problems);
         }
+
+        function removeDefect(defectItem) {
+            // Revoke the object URL to free memory
+            const img = defectItem.querySelector('.defect-image');
+            if (img && img.src) {
+                URL.revokeObjectURL(img.src);
+            }
+
+            // Remove the defect item
+            defectItem.remove();
+            defectCount--;
+
+            // Show no defects message if list is empty
+            const visibleDefects = Array.from(defectsList.children).filter(child =>
+                child.id !== 'noDefectsMessage' && !child.classList.contains('no-defects-message')
+            );
+            if (visibleDefects.length === 0) {
+                document.getElementById('noDefectsMessage').style.display = 'flex';
+            }
+        }
+
+        // Event delegation for remove buttons
+        defectsList.addEventListener('click', function(event) {
+            if (event.target.classList.contains('defect-remove-btn')) {
+                const defectItem = event.target.closest('.defect-item');
+                if (defectItem) {
+                    removeDefect(defectItem);
+                }
+            }
+        });
 
         // Toggle event listener
         cameraToggle.addEventListener('change', function() {
@@ -741,6 +1144,133 @@
 
         // Initialize status
         updateStatusIndicator();
+
+        // Settings modal
+        const settingsBtn = document.getElementById('settingsBtn');
+        const modal = document.getElementById('settingsModal');
+        const backdrop = document.getElementById('modalBackdrop');
+        const threshInput = document.getElementById('threshInput');
+        const llmRateInput = document.getElementById('llmRateInput');
+        const autoAnalysisToggle = document.getElementById('autoAnalysisToggle');
+        const autoAnalysisInterval = document.getElementById('autoAnalysisInterval');
+        const llmModelInput = document.getElementById('llmModelInput');
+        const llmPromptInput = document.getElementById('llmPromptInput');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const saveBtn = document.getElementById('saveBtn');
+
+        async function loadSettings() {
+            try {
+                const response = await fetch('/settings');
+                const data = await response.json();
+                threshInput.value = data.thresh;
+                llmRateInput.value = data.llm_rate_limit;
+                autoAnalysisToggle.checked = data.auto_analysis_enabled;
+                autoAnalysisInterval.value = data.auto_analysis_interval;
+                llmModelInput.value = data.llm_model;
+                llmPromptInput.value = data.llm_prompt;
+            } catch (error) {
+                console.error('Error loading settings:', error);
+            }
+        }
+
+        function showModal() {
+            modal.style.display = 'block';
+            backdrop.style.display = 'block';
+        }
+
+        function hideModal() {
+            modal.style.display = 'none';
+            backdrop.style.display = 'none';
+        }
+
+        settingsBtn.addEventListener('click', showModal);
+        backdrop.addEventListener('click', hideModal);
+        cancelBtn.addEventListener('click', hideModal);
+
+        saveBtn.addEventListener('click', async () => {
+            const thresh = parseFloat(threshInput.value);
+            const llmRate = parseInt(llmRateInput.value);
+            const autoEnabled = autoAnalysisToggle.checked;
+            const autoInterval = parseInt(autoAnalysisInterval.value);
+            const llmModel = llmModelInput.value.trim();
+            const llmPrompt = llmPromptInput.value.trim();
+
+            if (isNaN(thresh) || thresh < 0 || thresh > 1) {
+                alert('Seuil de détection doit être entre 0 et 1');
+                return;
+            }
+            if (isNaN(llmRate) || llmRate < 1) {
+                alert('Le délai entre analyses doit être au moins 1 seconde');
+                return;
+            }
+            if (isNaN(autoInterval) || autoInterval < 1) {
+                alert('L\'intervalle d\'analyse automatique doit être au moins 1 minute');
+                return;
+            }
+            if (!llmModel) {
+                alert('Le nom du modèle LLM ne peut pas être vide');
+                return;
+            }
+            if (!llmPrompt) {
+                alert('Le prompt LLM ne peut pas être vide');
+                return;
+            }
+
+            try {
+                const response = await fetch('/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        thresh: thresh,
+                        llm_rate_limit: llmRate,
+                        auto_analysis_enabled: autoEnabled,
+                        auto_analysis_interval: autoInterval,
+                        llm_model: llmModel,
+                        llm_prompt: llmPrompt
+                    })
+                });
+                if (response.ok) {
+                    hideModal();
+                    alert('Paramètres sauvegardés avec succès');
+                } else {
+                    alert('Erreur lors de la sauvegarde');
+                }
+            } catch (error) {
+                console.error('Error saving settings:', error);
+                alert('Erreur lors de la sauvegarde');
+            }
+        });
+
+        // Fullscreen functionality
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error('Error attempting to enable fullscreen:', err);
+                });
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+        // Update fullscreen button text based on state
+        document.addEventListener('fullscreenchange', function() {
+            if (document.fullscreenElement) {
+                fullscreenBtn.textContent = '🔳'; // Could change to exit icon if desired
+                fullscreenBtn.title = 'Quitter le plein écran';
+            } else {
+                fullscreenBtn.textContent = '🔳';
+                fullscreenBtn.title = 'Plein écran';
+            }
+        });
+
+        // Load settings on page load
+        loadSettings();
     </script>
     <!-- Credits Section at bottom of content -->
     <div style="margin-top: 50px; padding: 20px; text-align: center; font-size: 12px; color: #14223C; opacity: 0.8;">
